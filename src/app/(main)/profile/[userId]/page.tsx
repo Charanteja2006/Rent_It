@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
+import { auth } from "@/lib/auth";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { ItemGrid } from "@/components/items/ItemGrid";
-import { CalendarDays, Package } from "lucide-react";
+import { CalendarDays, Package, Pencil } from "lucide-react";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 interface ProfilePageProps {
@@ -16,6 +18,9 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
+  const session = await auth();
+  const isOwnProfile = session?.user?.id === params.userId;
+
   const user = await prisma.user.findUnique({
     where: { id: params.userId },
     select: {
@@ -40,7 +45,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       {/* Profile header */}
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 p-6 rounded-2xl border border-border bg-card">
         <UserAvatar name={user.name} image={user.image} size="xl" />
-        <div className="text-center sm:text-left space-y-2">
+        <div className="text-center sm:text-left space-y-2 flex-1">
           <h1 className="text-3xl font-bold text-foreground">{user.name}</h1>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground justify-center sm:justify-start">
             <CalendarDays className="h-4 w-4" />
@@ -51,6 +56,18 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             <span>{user.items.length} active listing{user.items.length !== 1 ? "s" : ""}</span>
           </div>
         </div>
+
+        {/* Edit profile button - only visible to profile owner */}
+        {isOwnProfile && (
+          <Link
+            href="/profile/edit"
+            id="edit-profile-btn"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:bg-muted text-sm font-medium transition-colors self-start"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Profile
+          </Link>
+        )}
       </div>
 
       {/* Listings */}

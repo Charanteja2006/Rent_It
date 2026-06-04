@@ -3,12 +3,14 @@ import { auth } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const uploadSchema = z.object({
   filename: z.string().min(1),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
 });
 
-// POST /api/upload — return a signed Supabase Storage URL for direct client upload
+// POST /api/upload - return a signed Supabase Storage URL for direct client upload
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -19,10 +21,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = uploadSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.errors[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
     const { filename, contentType } = parsed.data;
@@ -37,15 +36,10 @@ export async function POST(req: Request) {
 
     if (error || !data) {
       console.error("[UPLOAD_SIGNED_URL]", error);
-      return NextResponse.json(
-        { error: "Failed to generate upload URL" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to generate upload URL" }, { status: 500 });
     }
 
-    const publicUrl = supabase.storage
-      .from("item-images")
-      .getPublicUrl(filePath).data.publicUrl;
+    const publicUrl = supabase.storage.from("item-images").getPublicUrl(filePath).data.publicUrl;
 
     return NextResponse.json({
       data: {

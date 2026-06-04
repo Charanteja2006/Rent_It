@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateItemSchema } from "@/lib/validations/item";
 
+export const dynamic = "force-dynamic";
+
+
 // GET /api/items/[id]
 export async function GET(
   req: Request,

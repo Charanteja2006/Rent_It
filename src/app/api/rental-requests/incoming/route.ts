@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Always render dynamically — this route reads auth headers at request time
+export const dynamic = "force-dynamic";
+
 // GET /api/rental-requests/incoming — get all requests for items owned by current user
 export async function GET() {
   try {

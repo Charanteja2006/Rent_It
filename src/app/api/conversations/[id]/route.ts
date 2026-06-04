@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/conversations/[id] — get conversation with messages (participant only)
+export const dynamic = "force-dynamic";
+
+// GET /api/conversations/[id] - get conversation with messages (participant only)
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }

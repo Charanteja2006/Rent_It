@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createRentalRequestSchema } from "@/lib/validations/rental";
 
-// GET /api/rental-requests — get current user's requests (as renter)
+export const dynamic = "force-dynamic";
+
+// GET /api/rental-requests - list rental requests for the current user (as renter)
 export async function GET() {
   try {
     const session = await auth();
@@ -15,10 +17,9 @@ export async function GET() {
       where: { requesterId: session.user.id },
       include: {
         item: {
-          include: {
-            owner: { select: { id: true, name: true, image: true } },
-          },
+          select: { id: true, name: true, imageUrl: true },
         },
+        requester: { select: { id: true, name: true, image: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -30,7 +31,7 @@ export async function GET() {
   }
 }
 
-// POST /api/rental-requests — create a new rental request
+// POST /api/rental-requests - create a new rental request
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -41,10 +42,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = createRentalRequestSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.errors[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
     const { itemId, startDate, endDate, note } = parsed.data;
@@ -54,38 +52,45 @@ export async function POST(req: Request) {
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
-    if (!item.isAvailable) {
-      return NextResponse.json({ error: "Item is not available for rent" }, { status: 400 });
-    }
     if (item.ownerId === session.user.id) {
       return NextResponse.json({ error: "You cannot rent your own item" }, { status: 400 });
     }
+    if (!item.isAvailable) {
+      return NextResponse.json({ error: "Item is not available" }, { status: 400 });
+    }
 
-    // Create rental request
-    const rentalRequest = await prisma.rentalRequest.create({
+    // Prevent duplicate pending requests
+    const existing = await prisma.rentalRequest.findFirst({
+      where: {
+        itemId,
+        requesterId: session.user.id,
+        status: "pending",
+      },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "You already have a pending request for this item" },
+        { status: 400 }
+      );
+    }
+
+    const request = await prisma.rentalRequest.create({
       data: {
         itemId,
         requesterId: session.user.id,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        note,
+        note: note || null,
       },
       include: {
-        item: { include: { owner: { select: { id: true, name: true, image: true } } } },
+        item: { select: { id: true, name: true, imageUrl: true } },
         requester: { select: { id: true, name: true, image: true } },
       },
     });
 
-    // Create or retrieve conversation between renter and owner
-    await prisma.conversation.upsert({
-      where: { itemId_renterId: { itemId, renterId: session.user.id } },
-      create: { itemId, ownerId: item.ownerId, renterId: session.user.id },
-      update: {},
-    });
-
-    return NextResponse.json({ data: rentalRequest }, { status: 201 });
+    return NextResponse.json({ data: request }, { status: 201 });
   } catch (error) {
     console.error("[RENTAL_REQUESTS_POST]", error);
-    return NextResponse.json({ error: "Failed to create rental request" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create request" }, { status: 500 });
   }
 }

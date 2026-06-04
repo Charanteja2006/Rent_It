@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateRentalRequestSchema } from "@/lib/validations/rental";
 
-// PATCH /api/rental-requests/[id] — approve, decline, or mark returned (owner only)
+export const dynamic = "force-dynamic";
+
+// PATCH /api/rental-requests/[id] - approve, decline, or mark returned (owner only)
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }

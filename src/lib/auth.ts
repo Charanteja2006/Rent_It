@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   session: {
     strategy: "jwt",
   },
@@ -53,15 +54,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+      }
+      // Handle session update (e.g. profile name change)
+      if (trigger === "update" && session?.name) {
+        token.name = session.name;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
+        if (token.name) {
+          session.user.name = token.name as string;
+        }
       }
       return session;
     },

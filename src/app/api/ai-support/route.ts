@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/gemini";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const aiSupportSchema = z.object({
   messages: z.array(
     z.object({

@@ -3,7 +3,56 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendMessageSchema } from "@/lib/validations/message";
 
-// POST /api/messages — send a message to a conversation
+export const dynamic = "force-dynamic";
+
+// GET /api/messages?conversationId= - fetch messages for a conversation
+export async function GET(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const conversationId = searchParams.get("conversationId");
+
+    if (!conversationId) {
+      return NextResponse.json({ error: "conversationId is required" }, { status: 400 });
+    }
+
+    // Verify the user is a participant
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    const isParticipant =
+      conversation.ownerId === session.user.id ||
+      conversation.renterId === session.user.id;
+
+    if (!isParticipant) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "asc" },
+      include: {
+        sender: { select: { id: true, name: true, image: true } },
+      },
+    });
+
+    return NextResponse.json({ data: messages });
+  } catch (error) {
+    console.error("[MESSAGES_GET]", error);
+    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+  }
+}
+
+// POST /api/messages - send a message to a conversation
 export async function POST(req: Request) {
   try {
     const session = await auth();
